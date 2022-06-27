@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/aquilax/go-perlin"
@@ -48,10 +49,21 @@ func iso2Screen(i IsometricCoordinate) ScreenCoordinate {
     }
 }
 
+func getAdjIsometric(i IsometricCoordinate) []IsometricCoordinate {
+    // assumes int passed in, i.e. applies offset of 1
+    return []IsometricCoordinate{
+        {i.x+1, i.y, i.z},
+        {i.x-1, i.y, i.z},
+        {i.x, i.y+1, i.z},
+        {i.x, i.y-1, i.z},
+    }
+}
+
 var perlinGen *perlin.Perlin
 
 func init() {
     perlinGen = perlin.NewPerlin(2, 2, 3, time.Now().Unix())
+    rand.Seed(time.Now().Unix())
 }
 
 func getNoise(x, y float64) float64 {

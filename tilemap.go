@@ -53,13 +53,13 @@ func (t *Tilemap) Draw(screen *ebiten.Image, cameraPos IsometricCoordinate) {
             panic("sprite " + tile.tileType + " not set up!!!")
         }
         screenCoord := iso2Screen(IsometricCoordinate{
-            x: tile.coord.x + cameraPos.x,
-            y: tile.coord.y + cameraPos.y,
+            x: tile.coord.x - cameraPos.x,
+            y: tile.coord.y - cameraPos.y,
         })
         w, h := img.Size()
         drawOpt.GeoM.Reset()
         drawOpt.GeoM.Scale(tileWidth/float64(w), tileHeight/float64(h))
-        drawOpt.GeoM.Translate(screenCoord.x, screenCoord.y + tile.coord.z*tileHeight/2)
+        drawOpt.GeoM.Translate(screenCoord.x + 1920/2, screenCoord.y + 1080/2 - tile.coord.z * tileHeight/2)
         screen.DrawImage(img, &drawOpt)
     }
 }
