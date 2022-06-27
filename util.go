@@ -60,7 +60,7 @@ func screen2Iso(s ScreenCoordinate) IsometricCoordinate {
 func iso2Screen(i IsometricCoordinate) ScreenCoordinate {
     return ScreenCoordinate{
         x: i.x * i_x * 0.5 * tileWidth + i.y * j_x * 0.5 * tileWidth,
-        y: i.x * i_y * 0.5 * tileHeight + i.y * j_y * 0.5 * tileHeight,
+        y: i.x * i_y * 0.5 * tileHeight + i.y * j_y * 0.5 * tileHeight - i.z*tileWidth/2,
     }
 }
 

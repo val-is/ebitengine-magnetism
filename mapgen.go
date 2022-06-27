@@ -9,13 +9,17 @@ const (
     waterLevel = 1
     minIslandSize = 50
     maxIslandSize = 100
+
+    TILE_LAND = "landTile"
+    TILE_WATER = "waterTile"
+    TILE_SAND = "sandTile"
 )
 
 var (
     idxTileMap = map[int]tileType{
-        0: "landTile",
-        2: "waterTile",
-        3: "sandTile",
+        0: TILE_LAND,
+        2: TILE_WATER,
+        3: TILE_SAND,
     }
 )
 
@@ -49,7 +53,7 @@ func generateMapFromTiles(tiles []*Tile) ([]*Tile) {
                 finalTiles = append(finalTiles, tile)
             } else {
                 finalTiles = append(finalTiles, &Tile{
-                    tileType: "waterTile",
+                    tileType: TILE_WATER,
                     coord: IsometricCoordinate{float64(x), float64(y), waterLevel},
                 })
             }
@@ -60,9 +64,9 @@ func generateMapFromTiles(tiles []*Tile) ([]*Tile) {
 
 func pickTileType(position IsometricCoordinate) tileType {
     if position.z < waterLevel*1.1 {
-        return "sandTile"
+        return TILE_SAND 
     }
-    return "landTile"
+    return TILE_LAND 
 }
 
 func _generateIslandFloodFill(size, jumped int) ([]*Tile, bool, [][]*Tile) {
@@ -116,6 +120,7 @@ func _generateIslandFloodFill(size, jumped int) ([]*Tile, bool, [][]*Tile) {
             tile := &Tile{
                 tileType: pickTileType(finalTileCoord),
                 coord: finalTileCoord,
+                walkable: true,
             }
             tiles = append(tiles, tile)
             steps = append(steps, tiles)
@@ -146,16 +151,17 @@ func generateMapRaw() []*Tile {
             alt := getNoise(float64(x), float64(y)) * 3
             if alt > waterLevel {
                 tiles = append(tiles, &Tile{
-                    tileType: "landTile",
+                    tileType: TILE_LAND,
                     coord: IsometricCoordinate{
                         x: float64(x),
                         y: float64(y),
                         z: alt,
                     },
+                    walkable: true,
                 })
             } else {
                 tiles = append(tiles, &Tile{
-                    tileType: "waterTile",
+                    tileType: TILE_WATER,
                     coord: IsometricCoordinate{
                         x: float64(x),
                         y: float64(y),
