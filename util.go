@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"math/rand"
 	"time"
 
@@ -16,11 +17,25 @@ type IsometricCoordinate struct {
 }
 
 const (
-    i_x = 1
+    b_i_x = 1.0
+    b_i_y = 0.5
+    b_j_x = -1.0
+    b_j_y = 0.5
+)
+
+var (
+    i_x = 1.0
     i_y = 0.5
-    j_x = -1
+    j_x = -1.0
     j_y = 0.5
 )
+
+func rotateMap(rads float64) {
+    i_x = math.Cos(rads)*b_i_x + math.Sin(rads)*b_i_y
+    j_x = -math.Sin(rads)*b_i_x + math.Cos(rads)*b_i_y
+    i_y = math.Cos(rads)*b_j_x + math.Sin(rads)*b_j_y
+    j_y = -math.Sin(rads)*b_j_x + math.Cos(rads)*b_j_y
+}
 
 func invMatrix(a, b, c, d float64) (i, j, k, l float64) {
     det := (1 / (a*d - b*c))
