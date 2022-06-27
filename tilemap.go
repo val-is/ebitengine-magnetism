@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -29,6 +30,7 @@ func (t *Tile) CollidesWith(c IsometricCoordinate) bool {
 type Tilemap struct {
 	spritemap map[tileType]*ebiten.Image // TODO animated/custom sprite class support
 	tiles     []*Tile
+    waterPeriod float64
 }
 
 func NewTilemap(filepath string, indexToType map[int]tileType) (*Tilemap, error) {
@@ -49,17 +51,27 @@ func NewTilemap(filepath string, indexToType map[int]tileType) (*Tilemap, error)
 	return t, nil
 }
 
+func GetWaterOffset(posX, t float64) float64 {
+    v := math.Cos(9.0/11.0 * (t+posX)) + 0.5*math.Cos(2.0/7.0 * (t+posX)) + 0.25*math.Cos(2.0/11.0 * (t+posX))
+    return v * 0.1
+}
+
 func (t *Tilemap) Draw(screen *ebiten.Image, cameraPos IsometricCoordinate) {
 	drawOpt := ebiten.DrawImageOptions{}
+    t.waterPeriod += 0.01
 	for _, tile := range t.tiles {
 		img, present := t.spritemap[tile.tileType]
 		if !present {
 			panic("sprite " + tile.tileType + " not set up!!!")
 		}
+        zOffset := 0.0
+        if tile.tileType == TILE_WATER {
+            zOffset = GetWaterOffset(tile.coord.x+tile.coord.y*0.5, t.waterPeriod)
+        }
 		screenCoord := iso2Screen(IsometricCoordinate{
 			x: tile.coord.x - cameraPos.x,
 			y: tile.coord.y - cameraPos.y,
-            z: tile.coord.z - cameraPos.z,
+            z: tile.coord.z - cameraPos.z + float64(zOffset),
 		})
 		w, h := img.Size()
 		drawOpt.GeoM.Reset()

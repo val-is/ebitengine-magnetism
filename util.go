@@ -84,3 +84,7 @@ func init() {
 func getNoise(x, y float64) float64 {
     return perlinGen.Noise2D(x/13, y/13)
 }
+
+func sampleTimeDuration(minDur, maxDur time.Duration) time.Duration {
+    return time.Duration(rand.Intn(int((maxDur-minDur).Seconds()))) * time.Second + minDur
+}
