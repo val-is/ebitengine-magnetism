@@ -5,6 +5,7 @@ import (
 	_ "image/png"
 	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -13,16 +14,18 @@ type gameSceneImpl struct {
     baseScene
     tilemap *Tilemap
     cameraPos IsometricCoordinate
+    mapSteps [][]*Tile
+    currentStep int
 }
 
 const (
     waterLevel = 1
-    minIslandSize = 150
-    maxIslandSize = 200
+    minIslandSize = 50
+    maxIslandSize = 100
 )
 
-func generateMap() ([]*Tile, IsometricCoordinate) {
-    tiles := generateIslandFloodFill(rand.Intn(maxIslandSize-minIslandSize)+minIslandSize)
+func generateMap() ([]*Tile, IsometricCoordinate, [][]*Tile) {
+    tiles, mapSteps := generateIslandFloodFill(rand.Intn(maxIslandSize-minIslandSize)+minIslandSize)
     // make map have water
     tileTypes := make(map[IsometricCoordinate]*Tile)
     camCenter := IsometricCoordinate{}
@@ -33,6 +36,16 @@ func generateMap() ([]*Tile, IsometricCoordinate) {
             highestAlt = tile.coord.z
             camCenter = IsometricCoordinate{tile.coord.x, tile.coord.y, 0}
         }
+    }
+    finalTiles := generateMapFromTiles(tiles)
+    return finalTiles, camCenter, mapSteps
+}
+
+func generateMapFromTiles(tiles []*Tile) ([]*Tile) {
+    // make map have water
+    tileTypes := make(map[IsometricCoordinate]*Tile)
+    for _, tile := range tiles {
+        tileTypes[IsometricCoordinate{tile.coord.x, tile.coord.y, 0}] = tile
     }
     finalTiles := make([]*Tile, 0)
     for x := -50; x<50; x++ {
@@ -47,19 +60,29 @@ func generateMap() ([]*Tile, IsometricCoordinate) {
             }
         }
     }
-    return finalTiles, camCenter
+    return finalTiles
 }
 
-func _generateIslandFloodFill(size, jumped int) ([]*Tile, bool) {
+func pickTileType(position IsometricCoordinate) tileType {
+    if position.z < waterLevel+0.2 {
+        return "sandTile"
+    }
+    return "landTile"
+}
+
+func _generateIslandFloodFill(size, jumped int) ([]*Tile, bool, [][]*Tile) {
     tiles := make([]*Tile, 0)
+    steps := make([][]*Tile, 0)
     tilesNeedNeighbor := make([]*Tile, 0)
     tilesTaken := make(map[IsometricCoordinate]bool)
+    firstTile := true
     for {
         if len(tiles) == size {
-            return tiles, true
+            return tiles, true, steps
         }
-        if len(tiles) != 0 && len(tilesNeedNeighbor) == 0 {
-            return nil, false
+        if len(tilesNeedNeighbor) == 0 && !firstTile {
+            fmt.Println("trying new map...")
+            return nil, false, nil
         }
         var seedPos IsometricCoordinate
         if len(tiles) == 0 {
@@ -81,40 +104,40 @@ func _generateIslandFloodFill(size, jumped int) ([]*Tile, bool) {
                 break
             }
         }
+        firstTile = false
         if !adding {
             if len(tilesNeedNeighbor) >= 1 {
                 tilesNeedNeighbor = tilesNeedNeighbor[1:]
             }
             continue
         }
-        alt := getNoise(coordAdding.x+ float64(jumped), coordAdding.y+float64(jumped)) * 3
+        alt := getNoise(coordAdding.x+float64(jumped), coordAdding.y+float64(jumped))*2+waterLevel
         if alt > waterLevel {
+            finalTileCoord := IsometricCoordinate{
+                x: coordAdding.x,
+                y: coordAdding.y,
+                z: alt-waterLevel*0.6,
+            } 
             tile := &Tile{
-                tileType: "landTile",
-                coord: IsometricCoordinate{
-                    x: coordAdding.x,
-                    y: coordAdding.y,
-                    z: alt,
-                },
+                tileType: pickTileType(finalTileCoord),
+                coord: finalTileCoord,
             }
             tiles = append(tiles, tile)
+            steps = append(steps, tiles)
             tilesNeedNeighbor = append(tilesNeedNeighbor, tile)
-        }
-        if len(tiles) == 0 {
-            return nil, false
         }
         tilesTaken[coordAdding] = true
     }
 }
 
-func generateIslandFloodFill(size int) []*Tile {
+func generateIslandFloodFill(size int) ([]*Tile, [][]*Tile) {
     fmt.Printf("target size %d\n", size)
     jumped := 0
     for {
-        if tiles, valid := _generateIslandFloodFill(size, jumped); valid {
-            return tiles
+        if tiles, valid, mapSteps := _generateIslandFloodFill(size, jumped); valid {
+            return tiles, mapSteps
         }
-        jumped += 100
+        jumped += 17/13
     }
 }
 
@@ -147,9 +170,18 @@ func generateMapRaw() []*Tile {
     return tiles
 }
 
+func (g *gameSceneImpl) _updateMapSteps() error {
+    g.tilemap.tiles = generateMapFromTiles(g.mapSteps[g.currentStep])
+    g.currentStep++
+    if g.currentStep < len(g.mapSteps) {
+        g.actionQueue.Add(NewTimerAction(g._updateMapSteps, time.Now().Add(100 * time.Millisecond)))
+    }
+    return nil
+}
+
 func (g *gameSceneImpl) Start() error {
     var centerTile IsometricCoordinate
-    g.tilemap.tiles, centerTile = generateMap()
+    g.tilemap.tiles, centerTile, g.mapSteps = generateMap()
     centerTileScreen := iso2Screen(centerTile)
     g.cameraPos = screen2Iso(centerTileScreen)
     g.actionQueue.Add(func() (bool, error) {
@@ -166,6 +198,7 @@ func (g *gameSceneImpl) Start() error {
         }
         return false, nil
     })
+    // g.actionQueue.Add(NewTimerAction(g._updateMapSteps, time.Now().Add(1500 * time.Millisecond)))
     return nil
 }
 
@@ -185,6 +218,7 @@ func NewGameScene(game *Game) (Scene, error) {
     tilemap, err := NewTilemap("./resources/isometric-sandbox-32x32/isometric-sandbox-sheet.png", map[int]tileType{
         0: "landTile",
         2: "waterTile",
+        3: "sandTile",
     })
     if err != nil {
         return nil, err

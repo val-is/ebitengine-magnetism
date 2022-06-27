@@ -6,25 +6,32 @@ import (
 
 type Action func() (bool, error)
 
+var (
+    curActionKey int64
+)
+
 type ActionQueue struct {
-    actions []Action
+    actions map[int64]Action
 }
 
 func (a *ActionQueue) Update() error {
-    updatedActions := make([]Action, 0)
-    for _, action := range a.actions {
+    finishedActions := make([]int64, 0)
+    for key, action := range a.actions {
         if complete, err := action(); err != nil {
             return err
-        } else if !complete {
-            updatedActions = append(updatedActions, action)
+        } else if complete {
+            finishedActions = append(finishedActions, key)
         }
     }
-    a.actions = updatedActions
+    for _, key := range finishedActions {
+        delete(a.actions, key)
+    }
     return nil
 }
 
 func (a *ActionQueue) Add(action Action) {
-    a.actions = append(a.actions, action)
+    a.actions[curActionKey] = action
+    curActionKey++
 }
 
 func NewContinuousTimedAction(f func(percentComplete float64, duration time.Duration) (doneEarly bool, err error), duration time.Duration) Action {
@@ -47,9 +54,9 @@ func NewContinuousTimedAction(f func(percentComplete float64, duration time.Dura
 
 func NewTimerAction(f func() error, runTime time.Time) Action {
     return func() (bool, error) {
-        if time.Now().Before(runTime) {
-            return false, nil
+        if time.Now().After(runTime) {
+            return true, f()
         }
-        return true, f()
+        return false, nil
     }
 }

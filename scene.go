@@ -50,7 +50,7 @@ func (b *baseScene) Update() error {
 func NewBaseScene(game *Game) baseScene {
     return baseScene{
         actionQueue: ActionQueue{
-            actions: make([]Action, 0),
+            actions: make(map[int64]Action),
         },
         game: game,
     }
